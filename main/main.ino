@@ -9,6 +9,7 @@
 #include "ble_gatt.h"
 #include "adc_vbat.h"
 
+#define DATA_REPORT_INTERVAL_MS 100 // Report at 10hz
 #define DEVICE_NAME "FR_Wheel_Sensor" // Change as needed
 
 // Definitions needed for measuring suspension travel using a potentiometer as input.
@@ -84,6 +85,8 @@ two_t datapackTwo;
 thr_t datapackThr;
 // The raw value of the potentiometer measuring the ride height
 int potentiometerValue;
+// Used to report data with predefined fixed rate
+unsigned long time_now = 0;
 
 #ifdef TEMP_SENSOR
 boolean isTempSensorConnected();
@@ -131,20 +134,22 @@ void setup() {
 }
 
 void loop() {
+  if(millis() >= time_now + DATA_REPORT_INTERVAL_MS){
+    time_now += DATA_REPORT_INTERVAL_MS;
+    measureSuspensionTravel();
+  #ifdef TEMP_SENSOR
+    measureTemps();
+  #endif
+    measureBattery();
   
-  measureSuspensionTravel();
-#ifdef TEMP_SENSOR
-  measureTemps();
-#endif
-  measureBattery();
-  
-  if (Bluefruit.connected()) {
-    GATTone.notify(&datapackOne, sizeof(datapackOne));
-    GATTtwo.notify(&datapackTwo, sizeof(datapackTwo));
-    GATTthr.notify(&datapackThr, sizeof(datapackThr));
-  }
+    if (Bluefruit.connected()) {
+      GATTone.notify(&datapackOne, sizeof(datapackOne));
+      GATTtwo.notify(&datapackTwo, sizeof(datapackTwo));
+      GATTthr.notify(&datapackThr, sizeof(datapackThr));
+    }
 
-  printStatus();
+    printStatus();
+  }
 }
 
 //Returns true if the MLX90640 is detected on the I2C bus
